@@ -92,8 +92,30 @@ public class TrailFilter extends OncePerRequestFilter {
 	private String getClientIp(HttpServletRequest request) {
 	    String ip = request.getHeader("X-Forwarded-For");
 	    if (ip != null && !ip.isEmpty() && !"unknown".equalsIgnoreCase(ip)) {
-	        return ip.split(",")[0];
+	        ip = ip.split(",")[0].trim();
+	    } else {
+	        ip = request.getRemoteAddr();
 	    }
-	    return request.getRemoteAddr();
+
+	    try {
+	        // If it's localhost IPv6 → convert to IPv4
+	        if ("0:0:0:0:0:0:0:1".equals(ip) || "localhost".equalsIgnoreCase(ip)) {
+	            ip = java.net.InetAddress.getLocalHost()
+	                    .getHostAddress(); // usually 127.0.0.1 or your LAN IPv4
+	        }
+
+	        // If IPv6 → extract IPv4 part
+	        if (ip.contains(":")) {
+	            java.net.InetAddress inet = java.net.InetAddress.getByName(ip);
+	            if (inet instanceof java.net.Inet6Address) {
+	                ip = java.net.Inet4Address.getLocalHost().getHostAddress();
+	            }
+	        }
+	    } catch (Exception e) {
+	        ip = "127.0.0.1";
+	    }
+
+	    return ip;
 	}
+
 }
